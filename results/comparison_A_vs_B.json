@@ -1,0 +1,61 @@
+{
+  "layer_id": "layer_01",
+  "expB_external": {
+    "intensity_baseline": {
+      "accuracy": 0.5355805243445693,
+      "balanced_accuracy": 0.5355805243445693,
+      "precision": 0.7592233009708738,
+      "recall": 0.5355805243445693,
+      "f1": 0.407865791497505,
+      "auroc": 0.9325562148438048,
+      "n_errors": 248,
+      "n_total": 534
+    },
+    "linear_probe": {
+      "accuracy": 0.8614232209737828,
+      "balanced_accuracy": 0.8614232209737828,
+      "precision": 0.8614435014378902,
+      "recall": 0.8614232209737828,
+      "f1": 0.8614212770732802,
+      "auroc": 0.9390929876979618,
+      "n_errors": 74,
+      "n_total": 534
+    },
+    "mlp_probe": {
+      "accuracy": 0.5168539325842697,
+      "balanced_accuracy": 0.5168539325842697,
+      "precision": 0.7542857142857142,
+      "recall": 0.5168539325842697,
+      "f1": 0.369729907773386,
+      "auroc": 0.8803321690583401,
+      "n_errors": 258,
+      "n_total": 534
+    }
+  },
+  "expA_indomain_test": {
+    "intensity_baseline": {
+      "accuracy": 0.875,
+      "balanced_accuracy": 0.8423076923076923,
+      "precision": 0.7212096106048054,
+      "recall": 0.8423076923076923,
+      "f1": 0.7593835446184439,
+      "auroc": 0.9371794871794871
+    },
+    "linear_probe": {
+      "accuracy": 0.9848484848484849,
+      "balanced_accuracy": 0.976923076923077,
+      "precision": 0.9509698275862069,
+      "recall": 0.976923076923077,
+      "f1": 0.9634500899903087,
+      "auroc": 0.9987179487179487
+    },
+    "mlp_probe": {
+      "accuracy": 0.9924242424242424,
+      "balanced_accuracy": 0.9811965811965813,
+      "precision": 0.9811965811965813,
+      "recall": 0.9811965811965813,
+      "f1": 0.9811965811965813,
+      "auroc": 0.9981481481481481
+    }
+  }
+}

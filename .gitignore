@@ -1,0 +1,11 @@
+.DS_Store
+__pycache__/
+*.pyc
+.env
+.env.*
+.venv/
+node_modules/
+*.pt
+*.pth
+*.nii
+*.nii.gz
