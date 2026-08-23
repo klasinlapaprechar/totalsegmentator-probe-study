@@ -32,6 +32,28 @@ Source: [`results/comparison_A_vs_B.json`](results/comparison_A_vs_B.json) (aggr
 3. **MLP overfits the source domain** — strong in-domain, collapses externally; capacity without adaptation hurts OOD.
 4. **Implication for labeling** — probing de-risks “is there signal?” cheaply; a dedicated contrast classifier (see sibling benchmark repo) is still warranted before trusting deployment across sites.
 
+More detail: [`docs/representation-analysis.md`](docs/representation-analysis.md)
+
+## Figures
+
+Aggregate plots only — no subject IDs, file paths, or raw embedding dumps.
+
+**Probe performance (in-domain vs external)**
+
+![In-domain vs external balanced accuracy by probe method](assets/performance_expA_vs_expB_layer01.png)
+
+![Performance overview across layers and methods](assets/performance_overview.png)
+
+**Embedding geometry (PCA of frozen encoder features, layer 01)**
+
+| In-domain (linear) | External (linear) | External (MLP) |
+|---|---|---|
+| ![In-domain linear PCA](assets/indomain_linear_pca.png) | ![External linear PCA](assets/external_linear_pca.png) | ![External MLP PCA](assets/external_mlp_pca.png) |
+
+**Layer sweep**
+
+![Encoder layer embedding panels](assets/embeddings_layer_panels.png)
+
 ## Smoke
 
 ```bash
@@ -42,6 +64,7 @@ python scripts/run_smoke_probes.py
 ## Layout
 
 ```text
+assets/     aggregate performance + PCA figures (no PHI)
 src/        probe trainers + intensity baseline (sklearn)
 scripts/    synthetic embedding smoke
 results/    aggregate A/B comparison
