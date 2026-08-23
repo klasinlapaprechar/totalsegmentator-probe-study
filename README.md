@@ -4,6 +4,10 @@ Frozen-encoder representation analysis: can `vertebrae_mr` U-Net features separa
 
 > Aggregate metrics + synthetic smoke only. Encoder was **frozen** throughout — this is linear/MLP probing, not U-Net fine-tuning.
 
+**Example — external linear probe (PCA of frozen encoder features, layer 01):** partial class separation on spine-generic (~86% balanced accuracy); aggregate plot only, no subject IDs.
+
+![External linear probe — PCA embedding plot](assets/external_linear_pca.png)
+
 ## Setup
 
 | Item | Value |
