@@ -1,65 +1,59 @@
 # TotalSegmentator Probe Study
 
-Frozen-encoder representation analysis: can `vertebrae_mr` U-Net features separate spine MRI contrasts (`t2w` vs `t2star`) without updating segmentation weights?
+[TotalSegmentator](https://github.com/wasserth/TotalSegmentator) is a public model that outlines anatomical structures in medical images. On spine MRI, its `vertebrae_mr` model marks individual vertebrae. We did not retrain it. We froze those weights and asked whether the features it already computes carry the labels we care about.
 
-> Aggregate metrics + synthetic smoke only. Encoder was **frozen** throughout — this is linear/MLP probing, not U-Net fine-tuning.
+## Aim
 
-This repo is **step 2** of a three-part portfolio — an **alternative** to full supervised CNN training ([spine-mri-ml-benchmark](https://github.com/klasinlapaprechar/spine-mri-ml-benchmark)). Same underlying problem (reliable **type** labels under domain shift), but here we ask: *is there already signal in a frozen anatomy encoder, before training a dedicated classifier?* Integration into the merge pipeline: [clinical-dicom2bids-demo](https://github.com/klasinlapaprechar/clinical-dicom2bids-demo).
+The aim was to see whether this model already encodes **contrast** (which sequence the scan is), **VOI** (which part of the spine it covers), and **acq** (which plane it was acquired in). Training new models from scratch is expensive, and we were also data constrained. We did not have enough labelled scans to justify that cost across every variable.
 
-## Context (brief)
+We looked at this by **probing**. TotalSegmentator stays frozen. For each scan we pool one encoder layer into a single feature vector, then train a small readout on that vector:
 
-Clinical spine MRI needs contrast labels for BIDS organization. Full supervised training (ResNet/ViT bake-off, external eval, HF weights) is the **primary** path when metadata fails — see the [model benchmark repo](https://github.com/klasinlapaprechar/spine-mri-ml-benchmark). **This study** is the cheaper de-risking step: probe frozen TotalSegmentator embeddings with linear/MLP heads and measure in-domain vs external transfer before investing in end-to-end models.
+- **Intensity baseline.** Logistic regression on simple brightness statistics, not on the learned features. This is the control.
+- **Linear probe.** Logistic regression on the feature vector itself. If this works, the label is already laid out in a simple way inside the model.
+- **MLP probe.** A small two-layer network on the same vector. This can pick up a more tangled signal, but it can also fit quirks that do not travel to new data.
 
-**Example — external linear probe (PCA of frozen encoder features, layer 01):** partial class separation on spine-generic (~86% balanced accuracy); aggregate plot only, no subject IDs.
+If the linear probe can read the label, the information was already in the model. If only the MLP can, the signal is there but not in a simple form. If neither can, the model does not carry that variable in a way we can use.
 
-![External linear probe — PCA embedding plot](assets/external_linear_pca.png)
+The comparison below is the contrast probe: t2w versus t2*. That is the variable we had enough labels to test.
 
-## Setup
+## Constraints
 
-| Item | Value |
-|------|------:|
-| Embeddings extracted | 3,175 scan×layer vectors across **6** encoder layers |
-| Methods | intensity baseline · logistic linear probe · MLP probe |
-| Selection | layer chosen by k-fold balanced accuracy on train |
-| External n | 534 spine-generic scans |
+Two limits shaped what this probe can honestly claim.
+
+- **Not enough labels across MRI types.** Almost all of the labelled data covers a small set of contrasts, only t2w and t2*. We did not have comparable labels for the rest of the sequences researchers use, including T1, FLAIR, and DWI.
+- **Severe class imbalance.** Some classes had far more scans than others. A probe can look accurate by mostly learning the common class and still fail on the rare one. We report balanced accuracy for that reason.
+
+## Protocol
+
+
+| Item       | Setting                                                        |
+| ---------- | -------------------------------------------------------------- |
+| Encoder    | frozen TotalSegmentator `vertebrae_mr` (no weight updates)     |
+| Task       | contrast: t2w vs t2*                                           |
+| Embeddings | 3,175 scan×layer vectors across 6 encoder layers               |
+| Methods    | intensity baseline, linear probe, MLP probe                    |
+| Selection  | layer chosen by k-fold balanced accuracy on train (`layer_01`) |
+| Training   | MLP early-stops on validation loss (patience 10, up to 500 epochs). Linear probe picks its regularization on validation. |
+| External   | spine-generic, 534 scans                                       |
+
 
 ## Results
 
-| Split | Method | Balanced accuracy |
-|-------|--------|------------------:|
-| In-domain test | linear (`layer_01`) | **0.977** |
-| In-domain test | MLP | **0.981** |
-| External | intensity baseline | 0.536 |
-| External | **linear probe** | **0.861** |
-| External | MLP | 0.517 |
 
-Source: [`results/comparison_A_vs_B.json`](results/comparison_A_vs_B.json) (aggregate block only).
+| Split          | Method              | Balanced accuracy |
+| -------------- | ------------------- | ----------------- |
+| In-domain test | linear (`layer_01`) | **0.977**         |
+| In-domain test | MLP                 | **0.981**         |
+| External       | intensity baseline  | 0.536             |
+| External       | **linear probe**    | **0.861**         |
+| External       | MLP                 | 0.517             |
 
-## vs supervised training
 
-| | **This repo (probes)** | **[Model benchmark](https://github.com/klasinlapaprechar/spine-mri-ml-benchmark)** |
-|---|---|---|
-| Encoder | Frozen TotalSegmentator U-Net | Trained 2D/3D CNNs + foundation probes |
-| Cost | Cheap linear/MLP on embeddings | Full training + HF weight release |
-| External type | ~86% linear probe | **100%** ResNet-18 (134-scan external set) |
-| Role | De-risk “is there signal?” | Production-grade learned classifier |
+Source: `[results/comparison_A_vs_B.json](results/comparison_A_vs_B.json)` (aggregate block only).
 
-Probing justified moving to supervised training; probes alone are not deployment-ready across sites.
+On data from the same clinical set, both the linear probe and the MLP separate t2w from t2* very well. On spine-generic, a different collection of scans, only the linear probe still holds, at about 86%. The MLP drops to about chance. A baseline that uses image brightness alone also fails there. The useful signal is in the frozen features, and a simple readout is what keeps it.
 
-## Representation analysis
-
-1. **In-domain probes saturate** — frozen TotalSegmentator features carry contrast-discriminative signal when train/test share the clinical domain.
-2. **External linear transfer is partial** — 86.1% vs ~chance intensity baseline shows usable geometry/texture cues, but a ~12–15 pt drop vs in-domain indicates domain shift the probe cannot absorb.
-3. **MLP overfits the source domain** — strong in-domain, collapses externally; capacity without adaptation hurts OOD.
-4. **Implication for labeling** — probing de-risks “is there signal?” cheaply; a dedicated contrast classifier ([model benchmark](https://github.com/klasinlapaprechar/spine-mri-ml-benchmark)) is still warranted before trusting deployment across sites.
-
-More detail: [`docs/representation-analysis.md`](docs/representation-analysis.md)
-
-## Figures
-
-Aggregate plots only — no subject IDs, file paths, or raw embedding dumps.
-
-**Probe performance (in-domain vs external)**
+**Probe performance**
 
 ![In-domain vs external balanced accuracy by probe method](assets/performance_expA_vs_expB_layer01.png)
 
@@ -67,13 +61,25 @@ Aggregate plots only — no subject IDs, file paths, or raw embedding dumps.
 
 **Embedding geometry (PCA of frozen encoder features, layer 01)**
 
-| In-domain (linear) | External (linear) | External (MLP) |
-|---|---|---|
+These plots are aggregate only. They do not include subject IDs or file paths.
+
+
+| In-domain (linear)                                      | External (linear)                                      | External (MLP)                                   |
+| ------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------ |
 | ![In-domain linear PCA](assets/indomain_linear_pca.png) | ![External linear PCA](assets/external_linear_pca.png) | ![External MLP PCA](assets/external_mlp_pca.png) |
+
 
 **Layer sweep**
 
 ![Encoder layer embedding panels](assets/embeddings_layer_panels.png)
+
+More detail: `[docs/representation-analysis.md](docs/representation-analysis.md)`
+
+## Interpretation
+
+There was real contrast information in the frozen features. On the clinical set, both probes separate t2w from t2* at about 98%. That signal did not fully generalize. The linear probe still works on spine-generic, but it drops to about 86%. The MLP, which looked just as strong in-domain, falls to about chance.
+
+The most likely reason is that the training set was not diverse enough for the heavier readout. It comes from one clinical distribution. Spine-generic is a different collection: other sites, a cervical field of view, and a different mix of how the scans were acquired. Early stopping kept the MLP from memorizing the training split, but it still had enough capacity to fit quirks of that one dataset, including the class imbalance. Those quirks did not travel. The linear probe kept the part of the signal that was simple enough to share, and left the rest behind.
 
 ## Smoke
 
